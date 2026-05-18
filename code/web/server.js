@@ -189,7 +189,7 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('📚 LLM Interview Web 服务已启动');
+  console.log('📚 LLM-to-Agent Web 服务已启动');
   console.log('   访问地址：http://localhost:' + PORT);
   console.log('   笔记目录：' + NOTES_DIR);
 });
