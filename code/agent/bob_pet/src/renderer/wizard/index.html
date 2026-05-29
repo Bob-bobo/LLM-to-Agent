@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>欢迎使用 BobPet</title>
+  <link rel="stylesheet" href="wizard.css" />
+</head>
+<body>
+  <div class="wizard">
+    <div class="hero">🐱</div>
+    <h1>欢迎使用 BobPet</h1>
+    <p class="subtitle">你的 Windows 桌面猫娘伴侣</p>
+
+    <div id="step-detect" class="step active">
+      <h2>正在检测系统环境…</h2>
+      <ul id="env-list"></ul>
+    </div>
+
+    <div id="step-choose" class="step">
+      <h2>选择 AI 接入方式</h2>
+      <div class="choices">
+        <button type="button" class="choice" data-type="local">
+          <strong>本地模型</strong>
+          <span>通过 Ollama 运行，隐私更好</span>
+        </button>
+        <button type="button" class="choice" data-type="cloud">
+          <strong>线上服务</strong>
+          <span>OpenAI 兼容 API</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="step-config" class="step">
+      <div id="config-local" class="config-form hidden">
+        <label>Ollama 地址<input id="w-local-url" value="http://127.0.0.1:11434" /></label>
+        <label>模型<input id="w-local-model" value="llama3.2" /></label>
+      </div>
+      <div id="config-cloud" class="config-form hidden">
+        <label>API URL<input id="w-cloud-url" placeholder="https://api.openai.com/v1" /></label>
+        <label>API Key<input id="w-cloud-key" type="password" /></label>
+        <label>模型<input id="w-cloud-model" value="gpt-4o-mini" /></label>
+      </div>
+      <button type="button" id="btn-finish" class="primary">完成并开始</button>
+    </div>
+  </div>
+  <script src="wizard.js"></script>
+</body>
+</html>

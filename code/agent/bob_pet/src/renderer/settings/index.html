@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BobPet Settings</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <h1>BobPet</h1>
+      <button class="nav-item active" data-tab="model">模型设置</button>
+      <button class="nav-item" data-tab="persona">人格设置</button>
+      <button class="nav-item" data-tab="theme">外观主题</button>
+      <button class="nav-item" data-tab="language">语言</button>
+      <button class="nav-item" data-tab="shortcuts">快捷键</button>
+      <button class="nav-item" data-tab="general">通用</button>
+    </nav>
+    <main class="content">
+      <section id="tab-model" class="tab active">
+        <h2 data-i18n="modelConfig">模型配置</h2>
+
+        <!-- Saved profiles -->
+        <div id="profile-section">
+          <h3 data-i18n="profileList">已保存的配置</h3>
+          <div id="profile-list" class="profile-grid"></div>
+          <div class="actions" style="margin-top:12px">
+            <button type="button" id="btn-add-profile" class="primary" data-i18n="addProfile">添加配置</button>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Current active config -->
+        <h3 data-i18n="activeConfig">当前配置</h3>
+        <div class="tabs-inline">
+          <button type="button" class="pill active" data-model-type="local" data-i18n="localModel">本地模型 (Ollama)</button>
+          <button type="button" class="pill" data-model-type="cloud" data-i18n="cloudService">线上服务</button>
+        </div>
+        <div id="panel-local" class="form-panel">
+          <label data-i18n="ollamaAddr">Ollama 地址<input id="local-url" value="http://127.0.0.1:11434" /></label>
+          <label data-i18n="modelName">模型名称<input id="local-model" placeholder="llama3.2 / minicpm-v" /></label>
+          <p class="hint" data-i18n="ollamaHint">请先安装 <a href="#" id="link-ollama">Ollama</a> 并执行 <code>ollama pull llama3.2</code></p>
+        </div>
+        <div id="panel-cloud" class="form-panel hidden">
+          <label data-i18n="apiBaseUrl">API Base URL<input id="cloud-url" placeholder="https://api.openai.com/v1" /></label>
+          <label data-i18n="apiKey">API Key<input id="cloud-key" type="password" placeholder="sk-..." /></label>
+          <label data-i18n="modelName">模型名称<input id="cloud-model" placeholder="gpt-4o-mini" /></label>
+        </div>
+        <div class="actions">
+          <button type="button" id="btn-test" class="secondary" data-i18n="testConnection">测试连接</button>
+          <button type="button" id="btn-save-model" class="primary" data-i18n="save">保存</button>
+        </div>
+        <p id="test-result" class="result"></p>
+      </section>
+
+      <section id="tab-persona" class="tab">
+        <h2 data-i18n="personaTitle">人格适配器</h2>
+        <div id="persona-list" class="persona-grid"></div>
+        <div class="actions" style="margin-top:16px">
+          <button type="button" id="btn-add-persona" class="primary" data-i18n="addPersona">添加人格</button>
+        </div>
+        <p class="hint" data-i18n="personaDir">人格文件目录：%APPDATA%\BobPet\personas\</p>
+      </section>
+
+      <section id="tab-theme" class="tab">
+        <h2 data-i18n="themeTitle">外观主题</h2>
+        <div id="theme-list" class="theme-grid"></div>
+      </section>
+
+      <section id="tab-language" class="tab">
+        <h2 data-i18n="tabLanguage">语言</h2>
+        <div id="language-list" class="lang-grid"></div>
+      </section>
+
+      <section id="tab-shortcuts" class="tab">
+        <h2 data-i18n="shortcutTitle">快捷键</h2>
+        <label data-i18n="scToggleChat">打开/关闭聊天<input id="sc-chat" readonly value="Ctrl+Shift+M" /></label>
+        <label data-i18n="scThinking">思考模式<input id="sc-thinking" readonly value="Ctrl+Shift+T" /></label>
+        <label data-i18n="scTogglePet">显示/隐藏宠物<input id="sc-pet" readonly value="Ctrl+Shift+H" /></label>
+        <p class="hint" data-i18n="shortcutHint">快捷键修改功能将在后续版本支持自定义录制。</p>
+      </section>
+
+      <section id="tab-general" class="tab">
+        <h2 data-i18n="generalTitle">通用</h2>
+        <label class="checkbox">
+          <input type="checkbox" id="auto-start" /> <span data-i18n="autoStart">开机自启</span>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="show-thinking" /> <span data-i18n="showThinking">默认显示思考模式</span>
+        </label>
+        <button type="button" id="btn-save-general" class="primary" data-i18n="save">保存</button>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add Persona Modal -->
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3 data-i18n="addPersona">添加人格</h3>
+      <label data-i18n="personaName">名称<input id="m-name" placeholder="my_friend" /></label>
+      <label data-i18n="personaDesc">描述<input id="m-desc" placeholder="A friendly companion" /></label>
+      <label data-i18n="personaGreeting">问候语<input id="m-greeting" placeholder="你好！" /></label>
+      <label data-i18n="personaPrompt">系统提示词<textarea id="m-prompt" rows="4" placeholder="你是一个友好的桌面助手…"></textarea></label>
+      <label data-i18n="personaKeywords">关键词回复（每行：关键词=回复1|回复2）<textarea id="m-keywords" rows="3" placeholder="开心=太好了！|继续保持！"></textarea></label>
+      <div class="actions">
+        <button type="button" id="btn-modal-cancel" class="secondary">取消</button>
+        <button type="button" id="btn-modal-save" class="primary" data-i18n="save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Profile Modal -->
+  <div id="profile-modal-overlay" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3 id="profile-modal-title">添加配置</h3>
+      <label data-i18n="profileName">配置名称<input id="pf-name" placeholder="My GPT-4" /></label>
+      <div class="tabs-inline" style="margin-bottom:12px">
+        <button type="button" class="pill active" data-pf-type="local">本地模型</button>
+        <button type="button" class="pill" data-pf-type="cloud">线上服务</button>
+      </div>
+      <div id="pf-panel-local" class="form-panel">
+        <label>Ollama 地址<input id="pf-local-url" value="http://127.0.0.1:11434" /></label>
+        <label>模型名称<input id="pf-local-model" placeholder="llama3.2" /></label>
+      </div>
+      <div id="pf-panel-cloud" class="form-panel hidden">
+        <label>API Base URL<input id="pf-cloud-url" placeholder="https://api.openai.com/v1" /></label>
+        <label>API Key<input id="pf-cloud-key" type="password" placeholder="sk-..." /></label>
+        <label>模型名称<input id="pf-cloud-model" placeholder="gpt-4o-mini" /></label>
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-pf-cancel" class="secondary">取消</button>
+        <button type="button" id="btn-pf-save" class="primary" data-i18n="save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

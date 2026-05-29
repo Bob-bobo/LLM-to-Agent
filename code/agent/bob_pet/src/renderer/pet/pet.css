@@ -1,0 +1,59 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+.pet-wrap {
+  width: 130px;
+  height: 150px;
+  position: relative;
+  cursor: pointer;
+}
+
+.pet-shadow {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 12px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 50%;
+  filter: blur(4px);
+}
+
+#robot {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  transition: transform 0.3s ease;
+}
+
+/* When pet is hidden to edge, tilt/lean inward */
+.pet-wrap.hidden-edge #robot {
+  transform: translateX(-50%) rotate(-25deg) translateX(10px);
+}
+
+.bubble-hint {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.95);
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  color: #666;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.pet-wrap:hover .bubble-hint { opacity: 1; }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BobPet 聊天</title>
+  <link rel="stylesheet" href="chat.css" />
+</head>
+<body>
+  <div class="chat-shell">
+    <header class="chat-header" id="drag-header">
+      <span class="title">🐱 BobPet</span>
+      <div class="header-actions">
+        <button type="button" id="btn-thinking" title="思考模式 Ctrl+Shift+T">💭</button>
+        <button type="button" id="btn-settings" title="设置">⚙</button>
+        <button type="button" id="btn-close" title="关闭 Esc">✕</button>
+      </div>
+    </header>
+    <div class="thinking-panel" id="thinking-panel" hidden></div>
+    <main class="messages" id="messages"></main>
+    <footer class="input-area">
+      <textarea id="input" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行…"></textarea>
+      <button type="button" id="btn-send">发送</button>
+    </footer>
+    <div class="resize-handle" id="resize-handle"></div>
+  </div>
+  <script src="chat.js"></script>
+</body>
+</html>

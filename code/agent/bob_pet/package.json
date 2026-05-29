@@ -1,0 +1,57 @@
+{
+  "name": "bobpet",
+  "version": "1.0.0",
+  "description": "BobPet - Windows 11 桌面宠物伴侣",
+  "main": "src/main/index.js",
+  "author": "BobPet",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "build:dir": "electron-builder --win --dir",
+    "build:portable": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "electron-store": "^8.2.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.bobpet.desktop",
+    "productName": "BobPet",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "personas/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "personas",
+        "to": "personas"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BobPet"
+    }
+  }
+}
