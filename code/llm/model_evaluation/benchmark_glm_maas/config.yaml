@@ -1,0 +1,51 @@
+# ========== GLM API 配置 ==========
+api:
+  # 华为云MaaS GLM API地址（也支持智谱BigModel）
+  base_url: "xxx"
+  api_key: "xxx"        # 替换为实际API Key
+  model: "glm-5.1"                 # 模型名称，如 glm-4-plus, glm-4-flash
+  temperature: 0.0                    # 评测时建议设为0保证确定性
+
+# ========== 并发配置 ==========
+concurrency:
+  # 单个数据集内部异步并发数
+  per_dataset: 10
+  # 同时运行的数据集数量（多进程数），0表示全部同时运行
+  max_parallel_datasets: 0
+
+# ========== 数据集配置 ==========
+datasets:
+  hle:
+    enabled: true
+    data_path: "./data/hle/test-00000-of-00001.parquet"
+    max_samples: 100                  # 限制评测样本数，0表示全部
+    eval_batch_size: 10               # 内部并发数（覆盖全局配置）
+
+  swebench:
+    enabled: true
+    data_path: "./data/swebench/swe-bench-lite.json"
+    max_samples: 50
+
+  longbench:
+    enabled: true
+    data_path: "./data/longbench/"
+    subsets:                          # 可指定子集，空列表表示全部
+      - "narrativeqa"
+      - "qasper"
+      - "multifieldqa_en"
+    max_samples: 0
+
+  taubench:
+    enabled: true
+    data_path: "./data/taubench/"
+    # TAU-bench用户模型配置（用于模拟用户行为）
+    user_model_api_key: "your-user-model-api-key"
+    user_model: "gpt-4.1-2025-04-14"
+    user_model_base_url: "https://api.openai.com/v1"
+    max_samples: 20
+
+# ========== 输出配置 ==========
+output:
+  dir: "./results"
+  save_responses: true                # 是否保存模型原始回复
+  save_errors: true                   # 是否保存错误日志
