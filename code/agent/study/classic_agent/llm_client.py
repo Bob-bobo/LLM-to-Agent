@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from typing import List, Dict
 
 # 加载 .env 文件中的环境变量
-load_dotenv()
+load_dotenv(dotenv_path="../.env")
 
 
 class HelloAgentsLLM:

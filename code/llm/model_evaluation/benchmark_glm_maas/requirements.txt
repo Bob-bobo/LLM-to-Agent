@@ -1,0 +1,15 @@
+# GLM API Benchmark 依赖
+
+# HTTP异步请求
+aiohttp>=3.9.0
+
+# 配置文件解析
+pyyaml>=6.0
+
+# 以下为可选依赖：
+# - 使用EvalScope进行TAU-bench完整评测时安装：
+#   evalscope
+#   git+https://github.com/sierra-research/tau2-bench@v0.2.0
+
+# - 使用OpenAI SDK时安装：
+#   openai>=1.0.0
