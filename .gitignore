@@ -219,3 +219,5 @@ code/web/node_modules
 .workbuddy
 *.bin
 *.splite3
+
+node_modules/
