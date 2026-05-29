@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 # 加载环境变量
-load_dotenv()
+load_dotenv(dotenv_path="../../.env")
 
 # 先测试一个版本，使用 OpenAI 客户端
 from autogen_ext.models.openai import OpenAIChatCompletionClient

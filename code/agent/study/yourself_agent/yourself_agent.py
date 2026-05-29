@@ -5,7 +5,7 @@ from my_llm import MyLLM
 
 if __name__=="__main__":
     # 加载环境变量
-    load_dotenv()
+    load_dotenv(dotenv_path="../.env")
 
     # 创建LLM实例 - 框架自动检测provider
     llm = MyLLM()

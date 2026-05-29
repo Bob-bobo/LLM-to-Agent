@@ -6,7 +6,7 @@ from typing import List, Dict
 
 # 加载 .env 文件中的环境变量，处理文件不存在异常
 try:
-    load_dotenv()
+    load_dotenv(dotenv_path="../.env")
 except FileNotFoundError:
     print("警告：未找到 .env 文件，将使用系统环境变量。")
 except Exception as e:
