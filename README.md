@@ -2,8 +2,8 @@
 
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/awesome-llm-learning?style=social)](https://github.com/yourusername/awesome-llm-learning/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/yourusername/awesome-llm-learning?style=social)](https://github.com/yourusername/awesome-llm-learning/network/members)
+[![GitHub stars](https://github.com/Bob-bobo/LLM-to-Agent?style=social)](https://github.com/Bob-bobo/LLM-to-Agent/stargazers)
+[![GitHub forks](https://github.com/Bob-bobo/LLM-to-Agent?style=social)](https://github.com/Bob-bobo/LLM-to-Agent/network/members)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Last Commit](https://img.shields.io/github/last-commit/yourusername/awesome-llm-learning/main)](https://github.com/yourusername/awesome-llm-learning/commits/main)
@@ -11,7 +11,7 @@
 > **大模型（LLM & Multimodal）到Agent的学习路线、实战经验与面试指南**  
 > 从入门到进阶，从理论到实践，一起探索大模型的技术边界。
 
-[English](./README.md) · [简体中文](./README_CN.md) · [快速导航](#内容概览) · [贡献指南](./CONTRIBUTING.md)
+[简体中文](./README.md) · [English](README_EN.md) · [快速导航](#内容概览) · [贡献指南](./CONTRIBUTING.md)
 
 </div>
 
