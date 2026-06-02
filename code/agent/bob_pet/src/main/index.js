@@ -16,6 +16,7 @@ const { t, getAvailableLanguages, translations } = require('./i18n');
 const { startMonitor, onStateChange, triggerSuccess } = require('./monitor');
 const {
   streamChat,
+  streamChatWithProfile,
   testConnection,
   listPersonas,
   loadPersona,
@@ -290,13 +291,26 @@ function setupIpc() {
       return result;
     }
 
-    // Handle API key encryption: encrypt new keys, preserve existing when masked
+    // Handle API key encryption: encrypt new keys, resolve masked keys
     if (partial.model?.cloud?.apiKey && partial.model.cloud.apiKey !== '********') {
       partial.model.cloud.apiKey = encrypt(partial.model.cloud.apiKey);
     } else if (partial.model?.cloud && partial.model.cloud.apiKey === '********') {
-      // Keep the existing encrypted key
-      delete partial.model.cloud.apiKey;
+      // Resolve the real encrypted key from modelProfiles by profileId
+      const profileId = partial.model._profileId;
+      if (profileId) {
+        const profiles = store.get('modelProfiles') || [];
+        const matched = profiles.find((p) => p.id === profileId);
+        if (matched?.cloud?.apiKey) {
+          partial.model.cloud.apiKey = matched.cloud.apiKey;
+        }
+      }
+      // If still masked and not resolved, keep the existing encrypted key
+      if (partial.model.cloud.apiKey === '********') {
+        delete partial.model.cloud.apiKey;
+      }
     }
+    // Always clean up internal field so it never gets stored
+    if (partial.model) delete partial.model._profileId;
 
     // Handle model profiles encryption
     if (partial.modelProfiles) {
@@ -416,9 +430,10 @@ function setupIpc() {
     let fullContent = '';
     let fullThinking = '';
     const showThinking = store.get('showThinking');
+    const deepThink = store.get('deepThink');
 
     try {
-      for await (const chunk of streamChat(messages, { thinking: showThinking })) {
+      for await (const chunk of streamChat(messages, { thinking: showThinking, deepThink })) {
         if (chunk.type === 'content') {
           fullContent += chunk.text;
           event.sender.send('chat-chunk', { type: 'content', text: chunk.text });
@@ -439,6 +454,71 @@ function setupIpc() {
       event.sender.send('chat-chunk', { type: 'replace', text: fallback });
       return { ok: false, error: err.message, content: fallback };
     }
+  });
+
+  ipcMain.handle('multi-agent-stream', async (event, { messages, query, agentIds, summaryId }) => {
+    const profiles = store.get('modelProfiles') || [];
+    const selectedAgents = profiles.filter((p) => agentIds.includes(p.id));
+    if (selectedAgents.length === 0) {
+      return { ok: false, error: '未选择任何智能体' };
+    }
+
+    const persona = loadPersona(store.get('persona'));
+    const showThinking = store.get('showThinking');
+    const deepThink = store.get('deepThink');
+    const allResponses = [];
+
+    // Each agent responds in turn
+    for (const agent of selectedAgents) {
+      const agentName = agent.name || agent.cloud?.model || agent.local?.model || 'Agent';
+      event.sender.send('chat-chunk', { type: 'agent-label', name: agentName });
+
+      let agentContent = '';
+      try {
+        for await (const chunk of streamChatWithProfile(messages, agent, { thinking: showThinking, deepThink })) {
+          if (chunk.type === 'content') {
+            agentContent += chunk.text;
+            event.sender.send('chat-chunk', { type: 'content', text: chunk.text });
+          } else if (chunk.type === 'thinking' && showThinking) {
+            event.sender.send('chat-chunk', { type: 'thinking', text: chunk.text });
+          } else if (chunk.type === 'done') {
+            event.sender.send('chat-chunk', { type: 'done' });
+          }
+        }
+      } catch (err) {
+        agentContent = `（${agentName} 响应失败：${err.message}）`;
+        event.sender.send('chat-chunk', { type: 'content', text: agentContent });
+      }
+      allResponses.push({ name: agentName, content: agentContent });
+    }
+
+    // Summary by a designated model
+    if (summaryId) {
+      const summaryAgent = profiles.find((p) => p.id === summaryId);
+      if (summaryAgent) {
+        event.sender.send('chat-chunk', { type: 'agent-label', name: '总结' });
+        const summaryPrompt = allResponses.map((r) => `**${r.name}**:\n${r.content}`).join('\n\n---\n\n');
+        const summaryMessages = [
+          ...messages,
+          { role: 'user', content: `以下是多个智能体对同一问题的回答，请综合各方观点给出一个更好的总结回答：\n\n${summaryPrompt}` }
+        ];
+        let summaryContent = '';
+        try {
+          for await (const chunk of streamChatWithProfile(summaryMessages, summaryAgent, { thinking: showThinking, deepThink })) {
+            if (chunk.type === 'content') {
+              summaryContent += chunk.text;
+              event.sender.send('chat-chunk', { type: 'content', text: chunk.text });
+            } else if (chunk.type === 'done') {
+              event.sender.send('chat-chunk', { type: 'done' });
+            }
+          }
+        } catch (err) {
+          event.sender.send('chat-chunk', { type: 'content', text: `（总结失败：${err.message}）` });
+        }
+      }
+    }
+
+    return { ok: true, responses: allResponses };
   });
 
   ipcMain.on('pet-state-request', (e) => {

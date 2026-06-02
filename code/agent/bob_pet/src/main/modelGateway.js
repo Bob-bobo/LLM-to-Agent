@@ -64,12 +64,75 @@ async function testConnection() {
     }
     const base = (cfg.cloud?.baseUrl || '').replace(/\/$/, '');
     const key = decrypt(cfg.cloud?.apiKey || '');
-    const res = await axios.get(`${base}/models`, {
-      headers: { Authorization: `Bearer ${key}` },
-      timeout: 8000
-    });
-    return { ok: true, message: `连接成功，可用模型 ${res.data?.data?.length || '若干'}` };
+    const model = cfg.cloud?.model || '';
+
+    // Try /models first; some APIs (e.g. Volcengine Plan) don't have this endpoint
+    let modelList = [];
+    let modelCount = 0;
+    let modelsAvailable = true;
+    try {
+      const res = await axios.get(`${base}/models`, {
+        headers: { Authorization: `Bearer ${key}` },
+        timeout: 8000
+      });
+      modelList = res.data?.data || [];
+      modelCount = modelList.length;
+    } catch (modelsErr) {
+      const status = modelsErr.response?.status;
+      if (status === 401) {
+        return { ok: false, message: '认证失败（401），请检查 API Key 是否正确' };
+      }
+      // 404 or other — this API doesn't have /models, skip model list check
+      modelsAvailable = false;
+    }
+
+    if (!model) {
+      return { ok: true, message: modelsAvailable
+        ? `连接成功，可用模型 ${modelCount}（未选择模型）`
+        : '连接成功（该服务不支持模型列表，请确保模型名正确）'
+      };
+    }
+
+    if (modelsAvailable) {
+      const modelExists = modelList.some((m) => m.id === model);
+      if (!modelExists) {
+        return { ok: false, message: `连接成功（${modelCount} 个模型），但模型「${model}」不在列表中，请检查模型名是否正确` };
+      }
+    }
+
+    // Try actual chat call to verify the model is usable
+    try {
+      await axios.post(
+        `${base}/chat/completions`,
+        { model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 },
+        {
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          timeout: 15000
+        }
+      );
+    } catch (chatErr) {
+      const status = chatErr.response?.status;
+      if (status === 401) {
+        return { ok: false, message: `模型「${model}」Token 无使用权限（401），请检查 API Key 的模型授权范围和额度` };
+      }
+      if (status === 403) {
+        return { ok: false, message: `模型「${model}」无访问权限（403），请检查 Token 配置` };
+      }
+      if (status === 404) {
+        return { ok: false, message: `端点返回 404，请检查 Base URL 是否正确（当前：${base}）` };
+      }
+      // Other errors (429 rate limit, 400 params etc.) mean the model is reachable
+    }
+
+    if (modelsAvailable) {
+      return { ok: true, message: `连接成功，可用模型 ${modelCount}，模型「${model}」可用 ✓` };
+    }
+    return { ok: true, message: `连接成功，模型「${model}」可用 ✓（模型列表不可用）` };
   } catch (err) {
+    const status = err.response?.status;
+    if (status === 401) {
+      return { ok: false, message: '认证失败（401），请检查 API Key 是否正确' };
+    }
     return { ok: false, message: err.message || '连接失败' };
   }
 }
@@ -89,6 +152,24 @@ async function* streamChat(messages, options = {}) {
     yield* streamOllama(fullMessages, cfg.local, options);
   } else {
     yield* streamOpenAI(fullMessages, cfg.cloud, options);
+  }
+}
+
+// Stream chat with a specific model profile (for multi-agent)
+async function* streamChatWithProfile(messages, profile, options = {}) {
+  const personaName = store.get('persona') || 'neko';
+  const persona = loadPersona(personaName);
+  const systemPrompt = buildSystemPrompt(persona);
+
+  const fullMessages = [
+    { role: 'system', content: systemPrompt },
+    ...messages
+  ];
+
+  if (profile.type === 'local') {
+    yield* streamOllama(fullMessages, profile.local, options);
+  } else {
+    yield* streamOpenAI(fullMessages, profile.cloud, options);
   }
 }
 
@@ -137,9 +218,19 @@ async function* streamOpenAI(messages, cloudCfg, options) {
   const apiKey = decrypt(cloudCfg?.apiKey || '');
   const model = cloudCfg?.model || 'gpt-4o-mini';
 
+  const body = { model, messages, stream: true };
+  // Deep thinking: request the model to use its reasoning capability
+  if (options.deepThink) {
+    body.enable_thinking = true;
+    // Some providers use a different parameter name
+    // DeepSeek: no extra param needed, just use deepseek-reasoner model
+    // GLM: enable_thinking works
+    // Volcengine: enable_thinking works
+  }
+
   const res = await axios.post(
     `${base}/chat/completions`,
-    { model, messages, stream: true },
+    body,
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -185,6 +276,7 @@ function applyPersonaTemplate(persona, query, response) {
 
 module.exports = {
   streamChat,
+  streamChatWithProfile,
   testConnection,
   loadPersona,
   listPersonas,

@@ -55,6 +55,19 @@ label input {
   font-size: 14px;
   color: #1e293b;
 }
+label select {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #fff;
+  cursor: pointer;
+}
 .tabs-inline { margin-bottom: 16px; }
 .pill {
   padding: 8px 16px;
@@ -139,20 +152,31 @@ label input {
 .lang-card.selected { border-color: #3b82f6; background: #eff6ff; }
 .lang-card h3 { font-size: 15px; }
 
-/* Persona delete button */
-.btn-delete {
+/* Persona action buttons */
+.persona-actions {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+  gap: 4px;
+}
+.btn-persona-edit, .btn-delete {
   width: 24px;
   height: 24px;
   border: none;
-  background: #fee2e2;
-  color: #dc2626;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
+}
+.btn-persona-edit {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.btn-persona-edit:hover { background: #bfdbfe; }
+.btn-delete {
+  background: #fee2e2;
+  color: #dc2626;
 }
 .btn-delete:hover { background: #fecaca; }
 .persona-card { position: relative; }
@@ -223,3 +247,20 @@ h3 { font-size: 16px; margin-bottom: 12px; color: #334155; }
 .btn-use:hover { background: #dcfce7; border-color: #86efac; color: #16a34a; }
 .btn-edit:hover { background: #dbeafe; border-color: #93c5fd; color: #2563eb; }
 .btn-del:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+/* Multi-Agent */
+.ma-agent-grid { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.ma-agent-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.ma-agent-card.selected { border-color: #3b82f6; background: #eff6ff; }
+.ma-agent-check { width: 18px; height: 18px; cursor: pointer; }
+.ma-agent-info strong { display: block; font-size: 14px; }
+.ma-agent-info span { font-size: 12px; color: #64748b; }

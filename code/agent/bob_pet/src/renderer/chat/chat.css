@@ -54,6 +54,7 @@ html, body {
   font-size: 14px;
 }
 .chat-header button:hover { background: rgba(255,255,255,0.4); }
+.chat-header button.active { background: rgba(255,255,255,0.5); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.8); }
 .title { font-weight: 600; font-size: 14px; }
 
 .thinking-panel {
@@ -96,6 +97,53 @@ html, body {
   color: var(--c-msg-bot-text);
   border: 1px solid var(--c-msg-bot-border);
   border-bottom-left-radius: 4px;
+}
+
+/* Markdown rendering styles */
+.msg.assistant .md-h1 { font-size: 16px; font-weight: 700; margin: 6px 0 4px; }
+.msg.assistant .md-h2 { font-size: 15px; font-weight: 700; margin: 5px 0 3px; }
+.msg.assistant .md-h3 { font-size: 14px; font-weight: 600; margin: 4px 0 2px; }
+.msg.assistant .md-p { margin: 2px 0; }
+.msg.assistant .md-code-block {
+  background: rgba(0,0,0,0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.msg.assistant .md-code-block code {
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  white-space: pre;
+}
+.msg.assistant .md-code-inline {
+  background: rgba(0,0,0,0.07);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+}
+.msg.assistant .md-ul, .msg.assistant .md-ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.msg.assistant .md-ul { list-style-type: disc; }
+.msg.assistant .md-ol { list-style-type: decimal; }
+.msg.assistant .md-ul li, .msg.assistant .md-ol li {
+  margin: 2px 0;
+}
+.msg.assistant strong { font-weight: 700; }
+.msg.assistant em { font-style: italic; }
+.msg.assistant del { text-decoration: line-through; opacity: 0.7; }
+.msg.assistant .md-link {
+  color: var(--c-primary);
+  text-decoration: underline;
+}
+.msg.assistant .md-hr {
+  border: none;
+  border-top: 1px solid var(--c-border);
+  margin: 6px 0;
 }
 .msg.system {
   align-self: center;

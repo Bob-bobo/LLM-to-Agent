@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('bobpet', {
   savePersona: (data) => ipcRenderer.invoke('save-persona', data),
   deletePersona: (name) => ipcRenderer.invoke('delete-persona', name),
   chatStream: (payload) => ipcRenderer.invoke('chat-stream', payload),
+  multiAgentStream: (payload) => ipcRenderer.invoke('multi-agent-stream', payload),
   onChatChunk: (cb) => {
     const handler = (_, data) => cb(data);
     ipcRenderer.on('chat-chunk', handler);

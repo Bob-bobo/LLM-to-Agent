@@ -44,6 +44,20 @@
           <p class="hint" data-i18n="ollamaHint">请先安装 <a href="#" id="link-ollama">Ollama</a> 并执行 <code>ollama pull llama3.2</code></p>
         </div>
         <div id="panel-cloud" class="form-panel hidden">
+          <label data-i18n="presetProvider">预置服务商
+            <select id="cloud-preset">
+              <option value="">-- 自定义 --</option>
+              <option value="openai">OpenAI</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="zhipu">智谱 (GLM)</option>
+              <option value="moonshot">Moonshot (Kimi)</option>
+              <option value="volcengine">火山引擎 ARK</option>
+              <option value="volcengine_plan">火山引擎 ARK (Agent)</option>
+              <option value="aliyun">阿里百炼</option>
+              <option value="yi">零一万物 (Yi)</option>
+              <option value="minimax">MiniMax</option>
+            </select>
+          </label>
           <label data-i18n="apiBaseUrl">API Base URL<input id="cloud-url" placeholder="https://api.openai.com/v1" /></label>
           <label data-i18n="apiKey">API Key<input id="cloud-key" type="password" placeholder="sk-..." /></label>
           <label data-i18n="modelName">模型名称<input id="cloud-model" placeholder="gpt-4o-mini" /></label>
@@ -90,7 +104,24 @@
         <label class="checkbox">
           <input type="checkbox" id="show-thinking" /> <span data-i18n="showThinking">默认显示思考模式</span>
         </label>
+        <label class="checkbox">
+          <input type="checkbox" id="deep-think" /> <span data-i18n="deepThink">深度思考模式（请求模型启用推理能力）</span>
+        </label>
         <button type="button" id="btn-save-general" class="primary" data-i18n="save">保存</button>
+
+        <hr class="divider" />
+        <h3>多智能体协作</h3>
+        <p class="hint">选择多个模型配置参与圆桌讨论，可选指定一个模型做总结。</p>
+        <label class="checkbox">
+          <input type="checkbox" id="ma-enabled" /> <span>启用多智能体模式</span>
+        </label>
+        <div id="ma-agent-list" class="ma-agent-grid"></div>
+        <label>总结模型
+          <select id="ma-summary">
+            <option value="">-- 无总结 --</option>
+          </select>
+        </label>
+        <button type="button" id="btn-save-ma" class="primary">保存协作配置</button>
       </section>
     </main>
   </div>
@@ -98,7 +129,7 @@
   <!-- Add Persona Modal -->
   <div id="modal-overlay" class="modal-overlay" hidden>
     <div class="modal">
-      <h3 data-i18n="addPersona">添加人格</h3>
+      <h3 id="modal-title" data-i18n="addPersona">添加人格</h3>
       <label data-i18n="personaName">名称<input id="m-name" placeholder="my_friend" /></label>
       <label data-i18n="personaDesc">描述<input id="m-desc" placeholder="A friendly companion" /></label>
       <label data-i18n="personaGreeting">问候语<input id="m-greeting" placeholder="你好！" /></label>
