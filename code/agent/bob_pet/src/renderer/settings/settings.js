@@ -104,10 +104,11 @@ function renderProfiles() {
     const modelLabel = profile.type === 'local'
       ? (profile.local?.model || 'llama3.2')
       : (profile.cloud?.model || 'gpt-4o-mini');
+    const roleLabel = profile.role ? ` · ${profile.role}` : '';
     card.innerHTML = `
       <div class="profile-info">
         <strong>${profile.name}</strong>
-        <span>${typeLabel} / ${modelLabel}</span>
+        <span>${typeLabel} / ${modelLabel}${roleLabel}</span>
       </div>
       <div class="profile-actions">
         <button type="button" class="btn-sm btn-use" title="${t('useProfile') || '使用'}">✓</button>
@@ -147,6 +148,7 @@ function openProfileModal(profile) {
   document.getElementById('profile-modal-title').textContent =
     profile ? (t('editProfile') || '编辑配置') : (t('addProfile') || '添加配置');
   document.getElementById('pf-name').value = profile?.name || '';
+  document.getElementById('pf-role').value = profile?.role || '';
   pfType = profile?.type || 'local';
   document.getElementById('pf-local-url').value = profile?.local?.baseUrl || 'http://127.0.0.1:11434';
   document.getElementById('pf-local-model').value = profile?.local?.model || 'llama3.2';
@@ -183,6 +185,7 @@ document.getElementById('btn-pf-save').addEventListener('click', async () => {
   const profile = {
     id: editingProfileId || Date.now().toString(),
     name,
+    role: document.getElementById('pf-role').value.trim(),
     type: pfType,
     local: {
       baseUrl: document.getElementById('pf-local-url').value.trim(),
@@ -434,6 +437,9 @@ async function loadMultiAgentConfig() {
   const ma = cfg.multiAgent || {};
   window.__maConfig = ma;
   document.getElementById('ma-enabled').checked = !!ma.enabled;
+  document.getElementById('ma-mode').value = ma.mode || 'independent';
+  document.getElementById('ma-rounds').value = ma.rounds || 1;
+  document.getElementById('ma-summary-prompt').value = ma.summaryPrompt || '';
   renderMultiAgent();
 }
 
@@ -448,7 +454,9 @@ document.getElementById('btn-save-ma').addEventListener('click', async () => {
       enabled: document.getElementById('ma-enabled').checked,
       agentIds,
       summaryId,
-      mode: 'roundtable'
+      mode: document.getElementById('ma-mode').value,
+      rounds: parseInt(document.getElementById('ma-rounds').value, 10) || 1,
+      summaryPrompt: document.getElementById('ma-summary-prompt').value.trim()
     }
   });
   alert(t('save') + ' ✓');

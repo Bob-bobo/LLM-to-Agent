@@ -48,7 +48,9 @@ function getStore() {
           enabled: false,
           agentIds: [],
           summaryId: null,
-          mode: 'roundtable'
+          mode: 'roundtable',
+          rounds: 1,
+          summaryPrompt: ''
         }
       }
     });

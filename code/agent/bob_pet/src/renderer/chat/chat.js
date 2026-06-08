@@ -102,47 +102,100 @@ async function sendMessage() {
   thinkingText = '';
   thinkingPanel.textContent = '';
 
-  currentAssistantEl = appendMessage('assistant', '');
+  // For single model mode, create an assistant bubble upfront
+  // For multi-agent mode, bubbles are created dynamically per agent
+  if (!multiAgentMode) {
+    currentAssistantEl = appendMessage('assistant', '');
+  }
   let full = '';
 
   const unsub = window.bobpet.onChatChunk((chunk) => {
     if (chunk.type === 'content') {
       full += chunk.text;
-      updateMessage(currentAssistantEl, full);
+      if (currentAssistantEl) updateMessage(currentAssistantEl, full);
     } else if (chunk.type === 'thinking') {
       thinkingText += chunk.text;
       thinkingPanel.textContent = thinkingText;
       thinkingPanel.hidden = !showThinking;
     } else if (chunk.type === 'replace') {
       full = chunk.text;
-      updateMessage(currentAssistantEl, full);
-    } else if (chunk.type === 'agent-label') {
-      // Insert agent name label before its response
-      full += `\n\n**${chunk.name}**：\n`;
-      updateMessage(currentAssistantEl, full);
+      if (currentAssistantEl) updateMessage(currentAssistantEl, full);
     }
   });
 
   try {
     if (multiAgentMode) {
-      // Multi-agent roundtable mode
+      // Multi-agent group chat mode
       const cfg = await window.bobpet.getConfig();
       const ma = cfg.multiAgent || {};
       const agentIds = ma.agentIds || [];
       const summaryId = ma.summaryId || null;
+      const discussionMode = ma.mode === 'discussion';
       if (agentIds.length === 0) {
-        updateMessage(currentAssistantEl, '请先在设置中配置多智能体协作（选择参与讨论的模型配置）');
+        appendMessage('assistant', '请先在设置中配置多智能体协作（选择参与讨论的模型配置）');
         history.push({ role: 'assistant', content: '未配置多智能体' });
       } else {
-        const result = await window.bobpet.multiAgentStream({
-          messages: history.slice(-20),
-          query: text,
-          agentIds,
-          summaryId
+        // Track agent bubbles: agentId -> { el, full }
+        const agentBubbles = {};
+
+        const unsub = window.bobpet.onChatChunk((chunk) => {
+          if (chunk.type === 'agent-start') {
+            // Create a new independent bubble for this agent
+            const wrapper = document.createElement('div');
+            wrapper.className = 'agent-msg-wrapper';
+
+            const label = document.createElement('div');
+            label.className = 'agent-label';
+            const roleText = chunk.role ? ` · ${chunk.role}` : '';
+            const roundText = chunk.round ? ` [${chunk.round}]` : '';
+            label.innerHTML = `<span class="agent-icon">${chunk.agentId === 'summary' ? '📋' : '🤖'}</span> <span class="agent-name">${chunk.name}</span>${roundText ? `<span class="agent-round">${roundText}</span>` : ''}${roleText ? `<span class="agent-role">${roleText}</span>` : ''}`;
+            wrapper.appendChild(label);
+
+            const bubble = document.createElement('div');
+            bubble.className = 'msg assistant agent-bubble';
+            bubble.textContent = '';
+            wrapper.appendChild(bubble);
+
+            messagesEl.appendChild(wrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            agentBubbles[chunk.agentId] = { el: bubble, full: '' };
+          } else if (chunk.type === 'agent-content') {
+            const ab = agentBubbles[chunk.agentId];
+            if (ab) {
+              ab.full += chunk.text;
+              updateMessage(ab.el, ab.full);
+            }
+          } else if (chunk.type === 'agent-thinking') {
+            thinkingText += chunk.text;
+            thinkingPanel.textContent = thinkingText;
+            thinkingPanel.hidden = !showThinking;
+          } else if (chunk.type === 'agent-done') {
+            // Agent finished, bubble already updated
+          }
         });
-        full = result?.responses?.map((r) => r.content).join('\n\n') || full;
-        updateMessage(currentAssistantEl, full);
-        history.push({ role: 'assistant', content: full });
+
+        try {
+          const rounds = ma.rounds || 1;
+          const result = await window.bobpet.multiAgentStream({
+            messages: history.slice(-20),
+            query: text,
+            agentIds,
+            summaryId,
+            discussionMode,
+            rounds
+          });
+          // Add each agent's response as a separate history entry with structured labeling
+          // This preserves per-agent identity for the next conversation turn
+          if (result?.responses?.length) {
+            for (const r of result.responses) {
+              const roundLabel = r.round ? `[${r.round}] ` : '';
+              history.push({ role: 'assistant', content: `${roundLabel}${r.name}：${r.content}` });
+            }
+          }
+        } finally {
+          unsub();
+        }
       }
     } else {
       // Single model mode

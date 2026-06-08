@@ -115,12 +115,23 @@
         <label class="checkbox">
           <input type="checkbox" id="ma-enabled" /> <span>启用多智能体模式</span>
         </label>
+        <label>讨论模式
+          <select id="ma-mode">
+            <option value="independent">独立回答（并行，各 agent 互不可见）</option>
+            <option value="discussion">顺序讨论（串行，后续 agent 可见前面回答）</option>
+          </select>
+        </label>
+        <label>讨论轮次
+          <input id="ma-rounds" type="number" min="1" max="5" value="1" style="width:60px" />
+          <span class="hint" style="margin-left:8px">讨论模式下，每轮结束后各 agent 可看到上一轮所有人的回答</span>
+        </label>
         <div id="ma-agent-list" class="ma-agent-grid"></div>
         <label>总结模型
           <select id="ma-summary">
             <option value="">-- 无总结 --</option>
           </select>
         </label>
+        <label>自定义总结提示词<textarea id="ma-summary-prompt" rows="2" placeholder="留空使用默认：请综合各方观点给出一个更好的总结回答"></textarea></label>
         <button type="button" id="btn-save-ma" class="primary">保存协作配置</button>
       </section>
     </main>
@@ -147,6 +158,7 @@
     <div class="modal">
       <h3 id="profile-modal-title">添加配置</h3>
       <label data-i18n="profileName">配置名称<input id="pf-name" placeholder="My GPT-4" /></label>
+      <label>角色描述（多智能体时使用）<input id="pf-role" placeholder="如：技术专家，从技术可行性角度分析" /></label>
       <div class="tabs-inline" style="margin-bottom:12px">
         <button type="button" class="pill active" data-pf-type="local">本地模型</button>
         <button type="button" class="pill" data-pf-type="cloud">线上服务</button>

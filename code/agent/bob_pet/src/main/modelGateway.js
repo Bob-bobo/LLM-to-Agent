@@ -161,8 +161,14 @@ async function* streamChatWithProfile(messages, profile, options = {}) {
   const persona = loadPersona(personaName);
   const systemPrompt = buildSystemPrompt(persona);
 
+  // If the profile has a role description, append it to the system prompt
+  let fullSystemPrompt = systemPrompt;
+  if (profile.roleDescription) {
+    fullSystemPrompt += `\n\n你的角色：${profile.roleDescription}`;
+  }
+
   const fullMessages = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: fullSystemPrompt },
     ...messages
   ];
 
