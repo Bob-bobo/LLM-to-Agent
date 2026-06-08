@@ -5,8 +5,21 @@ let i18n = {};
 let currentLang = 'zh-CN';
 let modelProfiles = [];
 let editingProfileId = null;
+let editingPersonaName = null;
 
 const BUILTIN_PERSONAS = ['neko', 'chatty_friend', 'smiling_sister', 'funny_bro', 'cautious_mentor'];
+
+const CLOUD_PRESETS = {
+  openai:         { baseUrl: 'https://api.openai.com/v1',                        model: 'gpt-4o-mini',  keyHint: 'sk-...' },
+  deepseek:       { baseUrl: 'https://api.deepseek.com/v1',                     model: 'deepseek-chat', keyHint: 'sk-...' },
+  zhipu:          { baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            model: 'glm-4-flash',  keyHint: 'xxx.yyy' },
+  moonshot:       { baseUrl: 'https://api.moonshot.cn/v1',                      model: 'moonshot-v1-8k', keyHint: 'sk-...' },
+  volcengine:     { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',        model: 'ep-xxxxxxxx', keyHint: 'ARK API Key' },
+  volcengine_plan:{ baseUrl: 'https://ark.cn-beijing.volces.com/api/plan/v3',   model: 'ep-xxxxxxxx', keyHint: 'ARK API Key' },
+  aliyun:         { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', keyHint: 'sk-...' },
+  yi:             { baseUrl: 'https://api.lingyiwanwu.com/v1',                  model: 'yi-lightning', keyHint: 'sk-...' },
+  minimax:        { baseUrl: 'https://api.minimax.chat/v1',                     model: 'MiniMax-Text-01', keyHint: 'sk-...' }
+};
 
 const THEMES = [
   { name: 'blue',   labelKey: 'themeBlue',   color: '#3b82f6' },
@@ -58,12 +71,14 @@ async function loadConfig() {
   document.getElementById('cloud-model').value = cfg.model?.cloud?.model || '';
   document.getElementById('auto-start').checked = !!cfg.autoStart;
   document.getElementById('show-thinking').checked = !!cfg.showThinking;
+  document.getElementById('deep-think').checked = !!cfg.deepThink;
 
   updateModelPanels();
   renderPersonas();
   renderThemes();
   renderLanguages();
   renderProfiles();
+  loadMultiAgentConfig();
 }
 
 function updateModelPanels() {
@@ -89,10 +104,11 @@ function renderProfiles() {
     const modelLabel = profile.type === 'local'
       ? (profile.local?.model || 'llama3.2')
       : (profile.cloud?.model || 'gpt-4o-mini');
+    const roleLabel = profile.role ? ` · ${profile.role}` : '';
     card.innerHTML = `
       <div class="profile-info">
         <strong>${profile.name}</strong>
-        <span>${typeLabel} / ${modelLabel}</span>
+        <span>${typeLabel} / ${modelLabel}${roleLabel}</span>
       </div>
       <div class="profile-actions">
         <button type="button" class="btn-sm btn-use" title="${t('useProfile') || '使用'}">✓</button>
@@ -105,9 +121,11 @@ function renderProfiles() {
         model: {
           type: profile.type,
           local: { ...profile.local },
-          cloud: { ...profile.cloud }
+          cloud: { ...profile.cloud },
+          _profileId: profile.id
         }
       });
+      clearTestResult();
       await loadConfig();
     });
     card.querySelector('.btn-edit').addEventListener('click', () => openProfileModal(profile));
@@ -130,6 +148,7 @@ function openProfileModal(profile) {
   document.getElementById('profile-modal-title').textContent =
     profile ? (t('editProfile') || '编辑配置') : (t('addProfile') || '添加配置');
   document.getElementById('pf-name').value = profile?.name || '';
+  document.getElementById('pf-role').value = profile?.role || '';
   pfType = profile?.type || 'local';
   document.getElementById('pf-local-url').value = profile?.local?.baseUrl || 'http://127.0.0.1:11434';
   document.getElementById('pf-local-model').value = profile?.local?.model || 'llama3.2';
@@ -166,6 +185,7 @@ document.getElementById('btn-pf-save').addEventListener('click', async () => {
   const profile = {
     id: editingProfileId || Date.now().toString(),
     name,
+    role: document.getElementById('pf-role').value.trim(),
     type: pfType,
     local: {
       baseUrl: document.getElementById('pf-local-url').value.trim(),
@@ -198,13 +218,16 @@ async function renderPersonas() {
     card.className = 'persona-card' + (p.name === selectedPersona ? ' selected' : '');
     let html = `<h3>${p.name}</h3><p>${p.description || ''}</p>`;
     if (!isBuiltin) {
-      html += `<button type="button" class="btn-delete" title="${t('deletePersona')}">&times;</button>`;
+      html += `<div class="persona-actions">`;
+      html += `<button type="button" class="btn-persona-edit" title="${t('editPersona') || '编辑'}">✎</button>`;
+      html += `<button type="button" class="btn-delete" title="${t('deletePersona') || '删除'}">&times;</button>`;
+      html += `</div>`;
     }
     card.innerHTML = html;
     card.addEventListener('click', async (e) => {
       if (e.target.classList.contains('btn-delete')) {
         e.stopPropagation();
-        if (confirm(`${t('deletePersona')}: ${p.name}?`)) {
+        if (confirm(`${t('deletePersona') || '删除'}: ${p.name}?`)) {
           await window.bobpet.deletePersona(p.name);
           if (selectedPersona === p.name) {
             selectedPersona = 'neko';
@@ -212,6 +235,11 @@ async function renderPersonas() {
           }
           renderPersonas();
         }
+        return;
+      }
+      if (e.target.classList.contains('btn-persona-edit')) {
+        e.stopPropagation();
+        await openPersonaEditModal(p.name);
         return;
       }
       selectedPersona = p.name;
@@ -272,11 +300,33 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
 });
 
 // --- Model type toggle ---
+function clearTestResult() {
+  const el = document.getElementById('test-result');
+  el.textContent = '';
+  el.className = 'result';
+}
+
 document.querySelectorAll('[data-model-type]').forEach((btn) => {
   btn.addEventListener('click', () => {
     modelType = btn.dataset.modelType;
     updateModelPanels();
+    clearTestResult();
   });
+});
+
+// Clear test result when any model config field changes
+['local-url', 'local-model', 'cloud-url', 'cloud-key', 'cloud-model'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', clearTestResult);
+});
+
+// --- Cloud preset provider ---
+document.getElementById('cloud-preset').addEventListener('change', (e) => {
+  const preset = CLOUD_PRESETS[e.target.value];
+  if (!preset) return;
+  document.getElementById('cloud-url').value = preset.baseUrl;
+  document.getElementById('cloud-model').value = preset.model;
+  document.getElementById('cloud-key').placeholder = preset.keyHint;
+  clearTestResult();
 });
 
 // --- Save model ---
@@ -324,7 +374,8 @@ document.getElementById('btn-test').addEventListener('click', async () => {
 document.getElementById('btn-save-general').addEventListener('click', async () => {
   await window.bobpet.saveConfig({
     autoStart: document.getElementById('auto-start').checked,
-    showThinking: document.getElementById('show-thinking').checked
+    showThinking: document.getElementById('show-thinking').checked,
+    deepThink: document.getElementById('deep-think').checked
   });
   alert(t('save') + ' ✓');
 });
@@ -335,11 +386,92 @@ document.getElementById('link-ollama').addEventListener('click', (e) => {
   window.bobpet.openExternal('https://ollama.com/download');
 });
 
+// --- Multi-Agent ---
+function renderMultiAgent() {
+  const agentList = document.getElementById('ma-agent-list');
+  const summarySelect = document.getElementById('ma-summary');
+  const ma = (typeof window !== 'undefined' && window.__maConfig) || {};
+
+  agentList.innerHTML = '';
+  summarySelect.innerHTML = '<option value="">-- 无总结 --</option>';
+
+  if (modelProfiles.length === 0) {
+    agentList.innerHTML = '<p class="hint">请先在模型配置中添加配置</p>';
+    return;
+  }
+
+  const selectedIds = ma.agentIds || [];
+  modelProfiles.forEach((profile) => {
+    const card = document.createElement('div');
+    card.className = 'ma-agent-card' + (selectedIds.includes(profile.id) ? ' selected' : '');
+    const typeLabel = profile.type === 'local' ? 'Ollama' : 'Cloud';
+    const modelLabel = profile.type === 'local'
+      ? (profile.local?.model || 'llama3.2')
+      : (profile.cloud?.model || 'gpt-4o-mini');
+    card.innerHTML = `
+      <input type="checkbox" class="ma-agent-check" data-id="${profile.id}" ${selectedIds.includes(profile.id) ? 'checked' : ''} />
+      <div class="ma-agent-info">
+        <strong>${profile.name}</strong>
+        <span>${typeLabel} / ${modelLabel}</span>
+      </div>
+    `;
+    card.querySelector('.ma-agent-check').addEventListener('change', () => {
+      card.classList.toggle('selected', card.querySelector('.ma-agent-check').checked);
+    });
+    agentList.appendChild(card);
+
+    // Add to summary dropdown
+    const opt = document.createElement('option');
+    opt.value = profile.id;
+    opt.textContent = profile.name;
+    summarySelect.appendChild(opt);
+  });
+
+  if (ma.summaryId) {
+    summarySelect.value = ma.summaryId;
+  }
+}
+
+async function loadMultiAgentConfig() {
+  const cfg = await window.bobpet.getConfig();
+  const ma = cfg.multiAgent || {};
+  window.__maConfig = ma;
+  document.getElementById('ma-enabled').checked = !!ma.enabled;
+  document.getElementById('ma-mode').value = ma.mode || 'independent';
+  document.getElementById('ma-rounds').value = ma.rounds || 1;
+  document.getElementById('ma-summary-prompt').value = ma.summaryPrompt || '';
+  renderMultiAgent();
+}
+
+document.getElementById('btn-save-ma').addEventListener('click', async () => {
+  const agentIds = [];
+  document.querySelectorAll('.ma-agent-check:checked').forEach((cb) => {
+    agentIds.push(cb.dataset.id);
+  });
+  const summaryId = document.getElementById('ma-summary').value || null;
+  await window.bobpet.saveConfig({
+    multiAgent: {
+      enabled: document.getElementById('ma-enabled').checked,
+      agentIds,
+      summaryId,
+      mode: document.getElementById('ma-mode').value,
+      rounds: parseInt(document.getElementById('ma-rounds').value, 10) || 1,
+      summaryPrompt: document.getElementById('ma-summary-prompt').value.trim()
+    }
+  });
+  alert(t('save') + ' ✓');
+});
+
+loadMultiAgentConfig();
+
 // --- Persona modal ---
 const personaModal = document.getElementById('modal-overlay');
 document.getElementById('btn-add-persona').addEventListener('click', () => {
+  editingPersonaName = null;
   personaModal.hidden = false;
+  document.getElementById('modal-title').textContent = t('addPersona') || '添加人格';
   document.getElementById('m-name').value = '';
+  document.getElementById('m-name').disabled = false;
   document.getElementById('m-desc').value = '';
   document.getElementById('m-greeting').value = '';
   document.getElementById('m-prompt').value = '';
@@ -348,6 +480,8 @@ document.getElementById('btn-add-persona').addEventListener('click', () => {
 
 document.getElementById('btn-modal-cancel').addEventListener('click', () => {
   personaModal.hidden = true;
+  editingPersonaName = null;
+  document.getElementById('m-name').disabled = false;
 });
 
 document.getElementById('btn-modal-save').addEventListener('click', async () => {
@@ -371,11 +505,31 @@ document.getElementById('btn-modal-save').addEventListener('click', async () => 
   }
 
   await window.bobpet.savePersona({ name, description: desc, greeting, systemPrompt: prompt, keywords });
-  selectedPersona = name;
-  await window.bobpet.saveConfig({ persona: name });
+  if (!editingPersonaName) {
+    selectedPersona = name;
+    await window.bobpet.saveConfig({ persona: name });
+  }
   personaModal.hidden = true;
+  editingPersonaName = null;
   renderPersonas();
 });
+
+async function openPersonaEditModal(name) {
+  const persona = await window.bobpet.getPersona(name);
+  if (!persona) return;
+  editingPersonaName = name;
+  personaModal.hidden = false;
+  document.getElementById('modal-title').textContent = t('editPersona') || '编辑人格';
+  document.getElementById('m-name').value = persona.name || name;
+  document.getElementById('m-name').disabled = true;
+  document.getElementById('m-desc').value = persona.description || '';
+  document.getElementById('m-greeting').value = persona.dialogue_style?.greeting || '';
+  document.getElementById('m-prompt').value = persona.dialogue_style?.system_prompt || '';
+  const kw = persona.dialogue_style?.keywords || {};
+  document.getElementById('m-keywords').value = Object.entries(kw)
+    .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join('|') : v}`)
+    .join('\n');
+}
 
 // --- Language change listener ---
 window.bobpet.onLanguageChange?.(async (data) => {

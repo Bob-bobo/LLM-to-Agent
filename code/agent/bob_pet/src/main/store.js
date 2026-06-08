@@ -42,7 +42,16 @@ function getStore() {
         theme: 'blue',
         language: 'zh-CN',
         autoStart: false,
-        showThinking: false
+        showThinking: false,
+        deepThink: false,
+        multiAgent: {
+          enabled: false,
+          agentIds: [],
+          summaryId: null,
+          mode: 'roundtable',
+          rounds: 1,
+          summaryPrompt: ''
+        }
       }
     });
   }

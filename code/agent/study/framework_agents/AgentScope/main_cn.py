@@ -12,6 +12,7 @@ from agentscope.agent import ReActAgent
 from agentscope.model import OpenAIChatModel
 from agentscope.pipeline import MsgHub, sequential_pipeline, fanout_pipeline
 from agentscope.formatter import OpenAIMultiAgentFormatter
+from dotenv import load_dotenv
 
 from prompt_cn import ChinesePrompts
 from game_roles import GameRoles
@@ -62,7 +63,7 @@ class ThreeKingdomsWerewolfGame:
             sys_prompt=ChinesePrompts.get_role_prompt(role, character),
             model=OpenAIChatModel(
                 model_name="ark-code-latest",
-                api_key=os.environ["DASHSCOPE_API_KEY"],
+                api_key=os.environ["LLM_API_KEY"],
                 stream=True,
                 client_kwargs={
                     "base_url": "https://ark.cn-beijing.volces.com/api/plan/v3"
@@ -370,10 +371,11 @@ class ThreeKingdomsWerewolfGame:
 
 
 async def main():
+    load_dotenv("../../.env")
     """主函数"""
     # 检查环境变量
-    if "DASHSCOPE_API_KEY" not in os.environ:
-        print("❌ 请设置环境变量 DASHSCOPE_API_KEY")
+    if "LLM_API_KEY" not in os.environ:
+        print("❌ 请设置环境变量 LLM_API_KEY")
         return
 
     print("🎮 欢迎来到三国狼人杀！")

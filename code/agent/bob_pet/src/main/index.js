@@ -16,6 +16,7 @@ const { t, getAvailableLanguages, translations } = require('./i18n');
 const { startMonitor, onStateChange, triggerSuccess } = require('./monitor');
 const {
   streamChat,
+  streamChatWithProfile,
   testConnection,
   listPersonas,
   loadPersona,
@@ -290,13 +291,26 @@ function setupIpc() {
       return result;
     }
 
-    // Handle API key encryption: encrypt new keys, preserve existing when masked
+    // Handle API key encryption: encrypt new keys, resolve masked keys
     if (partial.model?.cloud?.apiKey && partial.model.cloud.apiKey !== '********') {
       partial.model.cloud.apiKey = encrypt(partial.model.cloud.apiKey);
     } else if (partial.model?.cloud && partial.model.cloud.apiKey === '********') {
-      // Keep the existing encrypted key
-      delete partial.model.cloud.apiKey;
+      // Resolve the real encrypted key from modelProfiles by profileId
+      const profileId = partial.model._profileId;
+      if (profileId) {
+        const profiles = store.get('modelProfiles') || [];
+        const matched = profiles.find((p) => p.id === profileId);
+        if (matched?.cloud?.apiKey) {
+          partial.model.cloud.apiKey = matched.cloud.apiKey;
+        }
+      }
+      // If still masked and not resolved, keep the existing encrypted key
+      if (partial.model.cloud.apiKey === '********') {
+        delete partial.model.cloud.apiKey;
+      }
     }
+    // Always clean up internal field so it never gets stored
+    if (partial.model) delete partial.model._profileId;
 
     // Handle model profiles encryption
     if (partial.modelProfiles) {
@@ -416,9 +430,10 @@ function setupIpc() {
     let fullContent = '';
     let fullThinking = '';
     const showThinking = store.get('showThinking');
+    const deepThink = store.get('deepThink');
 
     try {
-      for await (const chunk of streamChat(messages, { thinking: showThinking })) {
+      for await (const chunk of streamChat(messages, { thinking: showThinking, deepThink })) {
         if (chunk.type === 'content') {
           fullContent += chunk.text;
           event.sender.send('chat-chunk', { type: 'content', text: chunk.text });
@@ -439,6 +454,139 @@ function setupIpc() {
       event.sender.send('chat-chunk', { type: 'replace', text: fallback });
       return { ok: false, error: err.message, content: fallback };
     }
+  });
+
+  ipcMain.handle('multi-agent-stream', async (event, { messages, query, agentIds, summaryId, discussionMode, rounds }) => {
+    const profiles = store.get('modelProfiles') || [];
+    const selectedAgents = profiles.filter((p) => agentIds.includes(p.id));
+    if (selectedAgents.length === 0) {
+      return { ok: false, error: '未选择任何智能体' };
+    }
+
+    const persona = loadPersona(store.get('persona'));
+    const showThinking = store.get('showThinking');
+    const deepThink = store.get('deepThink');
+    const allResponses = [];
+    // Ensure rounds is at least 1
+    const totalRounds = Math.max(1, rounds || 1);
+
+    // Helper: run a single agent and stream results
+    // roundInfo is appended to agent-start so the UI can show which round
+    async function runAgent(agent, agentMessages, roundInfo) {
+      const agentId = agent.id;
+      const agentName = agent.name || agent.cloud?.model || agent.local?.model || 'Agent';
+      const agentRole = agent.role || '';
+      event.sender.send('chat-chunk', {
+        type: 'agent-start', agentId, name: agentName, role: agentRole,
+        round: roundInfo
+      });
+
+      let agentContent = '';
+      try {
+        for await (const chunk of streamChatWithProfile(agentMessages, agent, { thinking: showThinking, deepThink })) {
+          if (chunk.type === 'content') {
+            agentContent += chunk.text;
+            event.sender.send('chat-chunk', { type: 'agent-content', agentId, text: chunk.text });
+          } else if (chunk.type === 'thinking' && showThinking) {
+            event.sender.send('chat-chunk', { type: 'agent-thinking', agentId, text: chunk.text });
+          } else if (chunk.type === 'done') {
+            event.sender.send('chat-chunk', { type: 'agent-done', agentId });
+          }
+        }
+      } catch (err) {
+        agentContent = `（${agentName} 响应失败：${err.message}）`;
+        event.sender.send('chat-chunk', { type: 'agent-content', agentId, text: agentContent });
+        event.sender.send('chat-chunk', { type: 'agent-done', agentId });
+      }
+      return { id: agentId, name: agentName, content: agentContent, round: roundInfo };
+    }
+
+    if (discussionMode) {
+      // Discussion mode: multi-round sequential discussion
+      // Each round: agents answer sequentially, each sees previous agents' answers in this round
+      // Between rounds: all agents' answers from previous round are injected as context
+      let discussionContext = [...messages];
+
+      for (let round = 1; round <= totalRounds; round++) {
+        const roundInfo = totalRounds > 1 ? `第${round}轮` : '';
+
+        // At the start of round 2+, inject all previous round answers as context
+        if (round > 1) {
+          const prevRoundResponses = allResponses.filter((r) => r.round === `第${round - 1}轮`);
+          if (prevRoundResponses.length > 0) {
+            const prevSummary = prevRoundResponses
+              .map((r) => `[讨论中 ${r.name} 的回答]\n${r.content}`)
+              .join('\n\n');
+            discussionContext = [
+              ...discussionContext,
+              { role: 'user', content: `—— 上一轮讨论结果 ——\n\n${prevSummary}` }
+            ];
+          }
+        }
+
+        // Each agent in this round sees the accumulated discussion context
+        for (const agent of selectedAgents) {
+          const result = await runAgent(agent, discussionContext, roundInfo);
+          allResponses.push(result);
+          // Inject this agent's answer as context for the next agent in the same round
+          // Use 'user' role with clear labeling so the model treats it as
+          // discussion input from another participant, not its own past output
+          discussionContext = [
+            ...discussionContext,
+            { role: 'user', content: `[讨论中 ${result.name} 的回答]\n${result.content}` }
+          ];
+        }
+      }
+    } else {
+      // Independent mode: parallel execution, all agents see the same messages
+      // If rounds > 1, run multiple rounds in parallel (each round is independent)
+      for (let round = 1; round <= totalRounds; round++) {
+        const roundInfo = totalRounds > 1 ? `第${round}轮` : '';
+        const results = await Promise.allSettled(
+          selectedAgents.map((agent) => runAgent(agent, messages, roundInfo))
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            allResponses.push(r.value);
+          }
+        }
+      }
+    }
+
+    // Summary by a designated model
+    if (summaryId) {
+      const summaryAgent = profiles.find((p) => p.id === summaryId);
+      if (summaryAgent) {
+        event.sender.send('chat-chunk', { type: 'agent-start', agentId: 'summary', name: '总结', role: '' });
+        const summaryPrompt = allResponses.map((r) => {
+          const roundLabel = r.round ? `（${r.round}）` : '';
+          return `**${r.name}${roundLabel}**:\n${r.content}`;
+        }).join('\n\n---\n\n');
+        const customSummaryPrompt = store.get('multiAgent')?.summaryPrompt || '';
+        const summaryInstruction = customSummaryPrompt
+          || '以下是多个智能体对同一问题的回答，请综合各方观点给出一个更好的总结回答：';
+        const summaryMessages = [
+          ...messages,
+          { role: 'user', content: `${summaryInstruction}\n\n${summaryPrompt}` }
+        ];
+        let summaryContent = '';
+        try {
+          for await (const chunk of streamChatWithProfile(summaryMessages, summaryAgent, { thinking: showThinking, deepThink })) {
+            if (chunk.type === 'content') {
+              summaryContent += chunk.text;
+              event.sender.send('chat-chunk', { type: 'agent-content', agentId: 'summary', text: chunk.text });
+            } else if (chunk.type === 'done') {
+              event.sender.send('chat-chunk', { type: 'agent-done', agentId: 'summary' });
+            }
+          }
+        } catch (err) {
+          event.sender.send('chat-chunk', { type: 'agent-content', agentId: 'summary', text: `（总结失败：${err.message}）` });
+          event.sender.send('chat-chunk', { type: 'agent-done', agentId: 'summary' });
+        }
+      }
+    }
+
+    return { ok: true, responses: allResponses };
   });
 
   ipcMain.on('pet-state-request', (e) => {

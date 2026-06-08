@@ -9,7 +9,7 @@ import os
 load_dotenv(dotenv_path="../../.env")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
-LLM_MODEL = os.getenv("LLM_MODEL")
+LLM_MODEL = os.getenv("LLM_MODEL_ID")
 
 # 创建模型,在这里以调用火山引擎为例
 model = ModelFactory.create(

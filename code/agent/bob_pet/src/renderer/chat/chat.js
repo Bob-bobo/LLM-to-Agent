@@ -3,12 +3,16 @@ const inputEl = document.getElementById('input');
 const btnSend = document.getElementById('btn-send');
 const thinkingPanel = document.getElementById('thinking-panel');
 const btnThinking = document.getElementById('btn-thinking');
+const btnDeepThink = document.getElementById('btn-deep-think');
+const btnMultiAgent = document.getElementById('btn-multi-agent');
 const btnClose = document.getElementById('btn-close');
 const btnSettings = document.getElementById('btn-settings');
 
 let history = [];
 let streaming = false;
 let showThinking = false;
+let deepThink = false;
+let multiAgentMode = false;
 let currentAssistantEl = null;
 let thinkingText = '';
 let i18n = {};
@@ -18,10 +22,23 @@ function t(key) { return i18n[key] || key; }
 function appendMessage(role, text) {
   const div = document.createElement('div');
   div.className = `msg ${role}`;
-  div.textContent = text;
+  if (role === 'assistant' && typeof renderMarkdown === 'function') {
+    div.innerHTML = renderMarkdown(text);
+  } else {
+    div.textContent = text;
+  }
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return div;
+}
+
+function updateMessage(el, text) {
+  if (el.classList.contains('assistant') && typeof renderMarkdown === 'function') {
+    el.innerHTML = renderMarkdown(text);
+  } else {
+    el.textContent = text;
+  }
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 const THEME_CSS = {
@@ -53,8 +70,12 @@ function applyTheme(name) {
 async function init() {
   const cfg = await window.bobpet.getConfig();
   showThinking = cfg.showThinking;
+  deepThink = cfg.deepThink || false;
+  multiAgentMode = cfg.multiAgent?.enabled || false;
   thinkingPanel.hidden = !showThinking;
   btnThinking.classList.toggle('active', showThinking);
+  btnDeepThink.classList.toggle('active', deepThink);
+  btnMultiAgent.classList.toggle('active', multiAgentMode);
   applyTheme(cfg.theme || 'blue');
 
   const i18nData = await window.bobpet.getI18n();
@@ -81,32 +102,111 @@ async function sendMessage() {
   thinkingText = '';
   thinkingPanel.textContent = '';
 
-  currentAssistantEl = appendMessage('assistant', '');
+  // For single model mode, create an assistant bubble upfront
+  // For multi-agent mode, bubbles are created dynamically per agent
+  if (!multiAgentMode) {
+    currentAssistantEl = appendMessage('assistant', '');
+  }
   let full = '';
 
   const unsub = window.bobpet.onChatChunk((chunk) => {
     if (chunk.type === 'content') {
       full += chunk.text;
-      currentAssistantEl.textContent = full;
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (currentAssistantEl) updateMessage(currentAssistantEl, full);
     } else if (chunk.type === 'thinking') {
       thinkingText += chunk.text;
       thinkingPanel.textContent = thinkingText;
       thinkingPanel.hidden = !showThinking;
     } else if (chunk.type === 'replace') {
       full = chunk.text;
-      currentAssistantEl.textContent = full;
+      if (currentAssistantEl) updateMessage(currentAssistantEl, full);
     }
   });
 
   try {
-    const result = await window.bobpet.chatStream({
-      messages: history.slice(-20),
-      query: text
-    });
-    const content = result?.content || full;
-    currentAssistantEl.textContent = content;
-    history.push({ role: 'assistant', content });
+    if (multiAgentMode) {
+      // Multi-agent group chat mode
+      const cfg = await window.bobpet.getConfig();
+      const ma = cfg.multiAgent || {};
+      const agentIds = ma.agentIds || [];
+      const summaryId = ma.summaryId || null;
+      const discussionMode = ma.mode === 'discussion';
+      if (agentIds.length === 0) {
+        appendMessage('assistant', '请先在设置中配置多智能体协作（选择参与讨论的模型配置）');
+        history.push({ role: 'assistant', content: '未配置多智能体' });
+      } else {
+        // Track agent bubbles: agentId -> { el, full }
+        const agentBubbles = {};
+
+        const unsub = window.bobpet.onChatChunk((chunk) => {
+          if (chunk.type === 'agent-start') {
+            // Create a new independent bubble for this agent
+            const wrapper = document.createElement('div');
+            wrapper.className = 'agent-msg-wrapper';
+
+            const label = document.createElement('div');
+            label.className = 'agent-label';
+            const roleText = chunk.role ? ` · ${chunk.role}` : '';
+            const roundText = chunk.round ? ` [${chunk.round}]` : '';
+            label.innerHTML = `<span class="agent-icon">${chunk.agentId === 'summary' ? '📋' : '🤖'}</span> <span class="agent-name">${chunk.name}</span>${roundText ? `<span class="agent-round">${roundText}</span>` : ''}${roleText ? `<span class="agent-role">${roleText}</span>` : ''}`;
+            wrapper.appendChild(label);
+
+            const bubble = document.createElement('div');
+            bubble.className = 'msg assistant agent-bubble';
+            bubble.textContent = '';
+            wrapper.appendChild(bubble);
+
+            messagesEl.appendChild(wrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            agentBubbles[chunk.agentId] = { el: bubble, full: '' };
+          } else if (chunk.type === 'agent-content') {
+            const ab = agentBubbles[chunk.agentId];
+            if (ab) {
+              ab.full += chunk.text;
+              updateMessage(ab.el, ab.full);
+            }
+          } else if (chunk.type === 'agent-thinking') {
+            thinkingText += chunk.text;
+            thinkingPanel.textContent = thinkingText;
+            thinkingPanel.hidden = !showThinking;
+          } else if (chunk.type === 'agent-done') {
+            // Agent finished, bubble already updated
+          }
+        });
+
+        try {
+          const rounds = ma.rounds || 1;
+          const result = await window.bobpet.multiAgentStream({
+            messages: history.slice(-20),
+            query: text,
+            agentIds,
+            summaryId,
+            discussionMode,
+            rounds
+          });
+          // Add each agent's response as a separate history entry with structured labeling
+          // This preserves per-agent identity for the next conversation turn
+          if (result?.responses?.length) {
+            for (const r of result.responses) {
+              const roundLabel = r.round ? `[${r.round}] ` : '';
+              history.push({ role: 'assistant', content: `${roundLabel}${r.name}：${r.content}` });
+            }
+          }
+        } finally {
+          unsub();
+        }
+      }
+    } else {
+      // Single model mode
+      const result = await window.bobpet.chatStream({
+        messages: history.slice(-20),
+        query: text
+      });
+      const content = result?.content || full;
+      updateMessage(currentAssistantEl, content);
+      history.push({ role: 'assistant', content });
+    }
   } finally {
     unsub();
     streaming = false;
@@ -133,6 +233,25 @@ btnThinking.addEventListener('click', async () => {
   thinkingPanel.hidden = !showThinking;
   btnThinking.classList.toggle('active', showThinking);
   await window.bobpet.saveConfig({ showThinking });
+});
+
+btnDeepThink.addEventListener('click', async () => {
+  deepThink = !deepThink;
+  btnDeepThink.classList.toggle('active', deepThink);
+  await window.bobpet.saveConfig({ deepThink });
+  // Auto-enable thinking display when deep think is on
+  if (deepThink && !showThinking) {
+    showThinking = true;
+    thinkingPanel.hidden = false;
+    btnThinking.classList.toggle('active', true);
+    await window.bobpet.saveConfig({ showThinking: true });
+  }
+});
+
+btnMultiAgent.addEventListener('click', async () => {
+  multiAgentMode = !multiAgentMode;
+  btnMultiAgent.classList.toggle('active', multiAgentMode);
+  await window.bobpet.saveConfig({ multiAgent: { enabled: multiAgentMode } });
 });
 
 window.bobpet.onThinkingMode((v) => {
