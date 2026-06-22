@@ -1,0 +1,20 @@
+{
+  "model": "claude-sonnet-4-6",
+  "maxTokens": 16384,
+  "maxIterations": 50,
+  "provider": {
+    "type": "anthropic"
+  },
+  "permissions": {
+    "allow": [
+      { "tool": "Read", "pattern": "*" },
+      { "tool": "Glob", "pattern": "*" },
+      { "tool": "Grep", "pattern": "*" }
+    ],
+    "deny": [
+      { "tool": "Bash", "pattern": "rm -rf *" },
+      { "tool": "Bash", "pattern": "curl * | * sh" }
+    ]
+  },
+  "hooks": {}
+}
