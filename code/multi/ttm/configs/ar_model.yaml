@@ -1,0 +1,28 @@
+# AR Qwen3 模型微调配置
+
+model:
+  base_model_name: "Qwen/Qwen3-7B"  # 基础 Qwen3 模型
+  num_semantic_tokens: 1024         # K-means 码本大小
+  max_sequence_length: 2048         # 最大序列长度
+  max_text_length: 512              # 文本最大长度
+  max_token_length: 1024            # 语义 token 最大长度
+
+  lora:
+    enable: true           # 是否使用 LoRA
+    rank: 32               # LoRA rank
+    alpha: 64              # LoRA alpha
+    dropout: 0.05          # LoRA dropout
+    target_modules: ["q_proj", "v_proj"]  # 目标模块
+
+training:
+  learning_rate: 1.0e-4    # LoRA 学习率
+  batch_size: 8            # 每卡 batch size
+  max_steps: 10000         # 最大训练步数
+  warmup_steps: 500        # 热身步数
+  gradient_accumulation_steps: 4  # 梯度累积步数
+  weight_decay: 0.01       # 权重衰减
+  epochs: 5                # 训练 epochs
+  save_every: 1            # 每 N 个 epoch 保存
+  val_every: 1             # 每 N 个 epoch 验证
+  num_workers: 2           # 数据加载 workers
+  use_amp: true           # 使用混合精度

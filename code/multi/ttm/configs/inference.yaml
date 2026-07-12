@@ -1,0 +1,60 @@
+# 推理配置
+# 端到端文生音乐推理配置
+
+# VAE 模型参数
+vae:
+  in_channels: 1           # 输入 mel 通道数
+  base_channels: 64        # 基础通道数
+  latent_channels: 32      # latent 通道数
+  num_downsampling_layers: 4  # 下采样层数
+
+# DiT 模型参数
+dit:
+  model_name: "DiT-B/2"    # DiT 模型大小
+  input_size: 64           # 输入 latent 时间长度（对应 10 秒音乐：1024 帧 / 16 压缩 = 64）
+  in_channels: 256         # 输入通道数 = 32 × 8
+  hidden_size: 768         # Transformer 隐藏层大小
+  depth: 12                # Transformer 层数
+  num_heads: 12            # 注意力头数
+  patch_size: 2            # patch 大小
+  mlp_ratio: 4.0           # MLP 隐藏层倍率
+  cond_dropout_prob: 0.1   # 条件 dropout 概率
+
+# AR 模型参数
+ar:
+  base_model_name: "Qwen/Qwen3-7B"  # 基础 Qwen3 模型
+  max_sequence_length: 2048          # 最大序列长度
+  num_semantic_tokens: 1024          # 语义 token 码本大小
+  load_in_4bit: false                # 4bit 量化加载
+  load_in_8bit: false                # 8bit 量化加载
+  lora:
+    rank: 32               # LoRA rank
+    alpha: 64              # LoRA alpha
+    dropout: 0.05          # LoRA dropout
+    target_modules: ["q_proj", "v_proj"]  # 目标模块
+
+# 扩散过程参数
+diffusion:
+  num_train_timesteps: 1000
+  beta_start: 0.0001
+  beta_end: 0.02
+  scheduler_type: ddim
+
+# Griffin-Lim 声码器参数
+griffin_lim:
+  sample_rate: 44100
+  n_fft: 2048
+  hop_length: 512
+  n_mels: 128
+  f_min: 0.0
+  f_max: 22050.0
+  n_iter: 32
+
+# 端到端推理默认参数
+inference:
+  default_duration: 10.0   # 默认生成时长（秒）→ 对应 64 个时间步
+  max_semantic_tokens: 64  # 最大语义 token 数（控制生成长度）
+  temperature: 0.8         # AR 生成温度
+  top_p: 0.9               # AR 生成 top-p
+  cfg_strength: 2.0        # DiT 分类器引导强度
+  num_inference_steps: 50  # DiT 采样步数

@@ -1,0 +1,23 @@
+# 数据预处理配置
+
+preprocessing:
+  sample_rate: 44100       # 目标采样率
+  n_fft: 2048             # FFT 大小
+  hop_length: 512          # hop 长度
+  n_mels: 128              # mel 带数
+  f_min: 0.0               # 最小频率
+  f_max: 22050.0           # 最大频率
+  segment_duration: 10.0  # 每个训练片段持续时间（秒）
+  normalize: true          # 是否归一化
+  mean: 0.0                # 归一化均值（可选）
+  std: 1.0                 # 归一化标准差（可选）
+
+augmentation:
+  enable: true             # 是否使用数据增强
+  time_mask_param: 50      # 时间掩码最大长度
+  freq_mask_param: 10      # 频率掩码最大长度
+  n_time_masks: 2          # 时间掩码数量
+  n_freq_masks: 2          # 频率掩码数量
+  pitch_shift_range: 2     # 音调移位范围（半音）
+  time_stretch_min: 0.95   # 时间拉伸最小倍率
+  time_stretch_max: 1.05   # 时间拉伸最大倍率

@@ -1,0 +1,26 @@
+# DiT 模型和训练配置
+
+model:
+  in_channels: 256         # 输入 latent 通道数 = VAE latent_channels (32) × 频率压缩后 (8) = 256
+  hidden_size: 768         # Transformer 隐藏层大小
+  depth: 12                # Transformer 层数
+  num_heads: 12            # 注意力头数
+  patch_size: 2            # patch 大小
+  mlp_ratio: 4.0           # MLP 隐藏层倍率
+  cond_dropout_prob: 0.1   # classifier-free guidance 条件 dropout 概率
+  num_semantic_tokens: 1024  # 语义 token 码本大小
+
+diffusion:
+  num_train_timesteps: 1000  # 训练时间步数
+  beta_start: 0.0001       # beta 起始
+  beta_end: 0.02           # beta 结束
+  scheduler_type: ddim     # 调度器类型
+
+training:
+  learning_rate: 1.0e-4    # 学习率
+  batch_size: 16           # 每卡 batch size
+  max_steps: 300000        # 最大训练步数
+  warmup_steps: 2000       # 热身步数
+  weight_decay: 0.0        # 权重衰减
+  use_ema: true            # 使用 EMA
+  use_amp: true            # 使用混合精度
