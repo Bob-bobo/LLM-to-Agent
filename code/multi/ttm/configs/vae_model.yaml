@@ -1,0 +1,23 @@
+# VAE 模型和训练配置
+
+model:
+  in_channels: 1           # 输入 mel 通道数
+  base_channels: 64        # 基础通道数
+  latent_channels: 32       # latent 通道数
+  num_downsampling_layers: 4  # 下采样层数，总压缩比 2^4=16
+  dropout: 0.0             # dropout 概率
+
+training:
+  kl_weight: 0.0001        # KL 散度权重
+  learning_rate: 1.0e-4    # 学习率
+  batch_size: 32           # 每卡 batch size
+  max_steps: 200000        # 最大训练步数
+  warmup_steps: 1000       # 热身步数
+  grad_clip: 1.0           # 梯度裁剪
+  weight_decay: 0.0        # 权重衰减
+  epochs: 100              # 训练 epochs
+  save_every: 5            # 每 N 个 epoch 保存
+  use_amp: true            # 使用混合精度
+
+log_dir: "logs"
+checkpoint_dir: "checkpoints"
