@@ -10,7 +10,11 @@ import numpy as np
 from tqdm import tqdm
 
 import sys
-sys.path.append('..')
+# 添加项目根目录到 Python 路径
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+sys.path.append(project_root)
+
 from data.preprocessing import AudioPreprocessor, PreprocessingConfig
 
 

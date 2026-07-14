@@ -77,8 +77,8 @@ ttm/
 ```bash
 # 预处理音频，提取 mel-spectrogram
 python scripts/preprocess.py \
-    --input-dir data_raw/ \
-    --output-dir data_processed/ \
+    --input-dir /input/audio/ \
+    --output-dir /outputs/ \
     --config configs/preprocessing.yaml
 ```
 

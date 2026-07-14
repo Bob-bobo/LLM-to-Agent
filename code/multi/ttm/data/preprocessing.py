@@ -47,7 +47,14 @@ class AudioPreprocessor:
             waveform: [1, time] 单声道张量
             sample_rate: 采样率
         """
-        waveform, sr = torchaudio.load(file_path)
+        # 使用 librosa 加载，更稳定，避免 torchcodec Windows DLL 问题
+        waveform_np, sr = librosa.load(file_path, sr=None, mono=False)
+        waveform = torch.tensor(waveform_np)
+
+        # librosa 返回 [time] 单声道 或 [channels, time] 立体声
+        if len(waveform.shape) == 1:
+            waveform = waveform.unsqueeze(0)  # [1, time]
+
         return waveform, sr
 
     def resample(self, waveform: torch.Tensor, orig_sr: int) -> torch.Tensor:
